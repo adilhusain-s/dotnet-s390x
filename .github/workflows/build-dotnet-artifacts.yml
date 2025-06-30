@@ -36,8 +36,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Build local toolchain Docker image
         run: |
-          docker build -t dotnet-toolchain:${{ env.ARCH }} ./docker/image \
-            --build-arg ARCH=${{ env.ARCH }}
+          ARCH=${{ env.ARCH }} ./docker/build -t dotnet-toolchain:${{ env.ARCH }}
       - name: List local Docker images (debug)
         run: docker images
       - name: Prepare (runtime)
