@@ -3,6 +3,9 @@
 name: Build Dotnet Artifacts
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       dotnet_version:
@@ -13,7 +16,6 @@ on:
         description: 'Architecture to build for (e.g., ppc64le, s390x, x64)'
         required: false
         default: 'ppc64le'
-
 permissions:
   packages: read
   contents: write
@@ -48,19 +50,19 @@ jobs:
             --tag dotnet-toolchain:${ARCH} \
             --cache-from=type=gha \
             --cache-to=type=gha,mode=max \
-            --output type=docker,dest=dotnet-toolchain-${ARCH}.tar \
+            --output type=docker,dest=dotnet-toolchain:${ARCH}.tar \
             -f docker/image/Dockerfile docker/image
       - name: Upload toolchain Docker image artifact
         uses: actions/upload-artifact@v4
         with:
           name: dotnet-toolchain-image-${{ env.ARCH }}
-          path: dotnet-toolchain-${{ env.ARCH }}.tar
+          path: dotnet-toolchain:${{ env.ARCH }}.tar
 
   sdk:
     needs: build-toolchain-image
     runs-on: ubuntu-latest
     env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
       ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
     steps:
       - name: Show free disk space
@@ -78,10 +80,10 @@ jobs:
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+          name: dotnet-toolchain-image-${{ env.ARCH }}
       - name: Load toolchain Docker image
         run: |
-          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
+          docker load -i dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (sdk)
         run: ./dotnet-prepare sdk
       - name: Build sdk
@@ -100,7 +102,7 @@ jobs:
     needs: [build-toolchain-image, sdk]
     runs-on: ubuntu-latest
     env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
       ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
     steps:
       - name: Show free disk space
@@ -118,10 +120,10 @@ jobs:
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+          name: dotnet-toolchain-image-${{ env.ARCH }}
       - name: Load toolchain Docker image
         run: |
-          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
+          docker load -i dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (runtime)
         run: ./dotnet-prepare runtime
       - name: Build runtime
@@ -140,7 +142,7 @@ jobs:
     needs: runtime
     runs-on: ubuntu-latest
     env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
       ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
     steps:
       - name: Show free disk space
@@ -162,10 +164,10 @@ jobs:
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+          name: dotnet-toolchain-image-${{ env.ARCH }}
       - name: Load toolchain Docker image
         run: |
-          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
+          docker load -i dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (msbuild)
         run: ./dotnet-prepare msbuild
       - name: Build msbuild
@@ -184,7 +186,7 @@ jobs:
     needs: msbuild
     runs-on: ubuntu-latest
     env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
       ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
     steps:
       - name: Show free disk space
@@ -206,10 +208,10 @@ jobs:
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+          name: dotnet-toolchain-image-${{ env.ARCH }}
       - name: Load toolchain Docker image
         run: |
-          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
+          docker load -i dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (roslyn)
         run: ./dotnet-prepare roslyn
       - name: Build roslyn
@@ -228,7 +230,7 @@ jobs:
     needs: roslyn
     runs-on: ubuntu-latest
     env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
       ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
     steps:
       - name: Show free disk space
@@ -250,10 +252,10 @@ jobs:
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+          name: dotnet-toolchain-image-${{ env.ARCH }}
       - name: Load toolchain Docker image
         run: |
-          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
+          docker load -i dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (aspnetcore)
         run: ./dotnet-prepare aspnetcore
       - name: Build aspnetcore
