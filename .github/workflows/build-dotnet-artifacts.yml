@@ -35,8 +35,16 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Build local toolchain Docker image (with GitHub Actions cache backend)
         run: |
+          deb_arch="$ARCH"
+          gnu_arch="$ARCH"
+          if [ "$ARCH" = "ppc64le" ]; then
+            deb_arch="ppc64el"
+            gnu_arch="powerpc64le"
+          fi
           docker buildx build \
             --build-arg ARCH=${ARCH} \
+            --build-arg deb_arch=${deb_arch} \
+            --build-arg gnu_arch=${gnu_arch} \
             --tag dotnet-toolchain:${ARCH} \
             --cache-from=type=gha \
             --cache-to=type=gha,mode=max \
