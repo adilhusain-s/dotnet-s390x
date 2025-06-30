@@ -48,8 +48,13 @@ jobs:
             --tag dotnet-toolchain:${ARCH} \
             --cache-from=type=gha \
             --cache-to=type=gha,mode=max \
-            --load \
+            --output type=docker,dest=dotnet-toolchain-${ARCH}.tar \
             -f docker/image/Dockerfile docker/image
+      - name: Upload toolchain Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-toolchain-image-${{ env.ARCH }}
+          path: dotnet-toolchain-${{ env.ARCH }}.tar
 
   sdk:
     needs: build-toolchain-image
@@ -70,6 +75,13 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (sdk)
         run: ./dotnet-prepare sdk
       - name: Build sdk
@@ -103,6 +115,13 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (runtime)
         run: ./dotnet-prepare runtime
       - name: Build runtime
@@ -140,6 +159,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (msbuild)
         run: ./dotnet-prepare msbuild
       - name: Build msbuild
@@ -177,6 +203,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (roslyn)
         run: ./dotnet-prepare roslyn
       - name: Build roslyn
@@ -214,6 +247,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-dotnet-toolchain:${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-dotnet-toolchain:${{ env.ARCH }}.tar
       - name: Prepare (aspnetcore)
         run: ./dotnet-prepare aspnetcore
       - name: Build aspnetcore
