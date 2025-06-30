@@ -21,6 +21,7 @@ permissions:
   contents: write
 
 jobs:
+
   build-toolchain-image:
     runs-on: ubuntu-latest
     env:
@@ -54,49 +55,8 @@ jobs:
           name: dotnet-toolchain-image-${{ env.ARCH }}
           path: dotnet-toolchain-${{ env.ARCH }}.tar
 
-  sdk:
-    needs: build-toolchain-image
-    runs-on: ubuntu-latest
-    env:
-      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
-      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
-    steps:
-      - name: Show free disk space
-        run: df -h
-      - name: Free some disk space
-        run: rm -rf /opt/hostedtoolcache
-      - name: Show free disk space (after cleanup)
-        run: df -h
-      - name: Configure git
-        run: |
-          git config --global user.email iii@linux.ibm.com
-          git config --global user.name "dotnet-s390x bot"
-      - name: Checkout dotnet-s390x
-        uses: actions/checkout@v4
-      - name: Download toolchain Docker image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dotnet-toolchain-image-${{ env.ARCH }}
-      - name: Load toolchain Docker image
-        run: |
-          docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare (sdk)
-        run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare sdk
-      - name: Build sdk
-        run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build sdk
-      - name: Upload SDK Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
-          path: |
-            local-downloads/
-            local-packages/
-            output/
-
   runtime:
-    needs: [build-toolchain-image, sdk]
+    needs: build-toolchain-image
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -123,10 +83,10 @@ jobs:
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (runtime)
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare runtime
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare runtime
       - name: Build runtime
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build runtime
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build runtime
       - name: Upload Runtime Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -155,10 +115,6 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
-      - name: Download runtime artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -166,12 +122,16 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
+      - name: Download runtime artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Prepare (msbuild)
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare msbuild
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare msbuild
       - name: Build msbuild
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build msbuild
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build msbuild
       - name: Upload MSBuild Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -200,10 +160,6 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
-      - name: Download msbuild artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -211,12 +167,16 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
+      - name: Download msbuild artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Prepare (roslyn)
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare roslyn
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare roslyn
       - name: Build roslyn
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build roslyn
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build roslyn
       - name: Upload Roslyn Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -245,10 +205,6 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
-      - name: Download roslyn artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -256,12 +212,16 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
+      - name: Download roslyn artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
       - name: Prepare (aspnetcore)
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare aspnetcore
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare aspnetcore
       - name: Build aspnetcore
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build aspnetcore
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build aspnetcore
       - name: Upload AspNetCore Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -271,8 +231,53 @@ jobs:
             local-packages/
             output/
 
-  release:
+  sdk:
     needs: aspnetcore
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-${{ env.ARCH }}
+      - name: Download aspnetcore artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: aspnetcore-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
+      - name: Prepare (sdk)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare sdk
+      - name: Build sdk
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build sdk
+      - name: Upload SDK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+
+  release:
+    needs: sdk
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
