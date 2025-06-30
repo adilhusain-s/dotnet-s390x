@@ -1,5 +1,4 @@
-# This workflow builds dotnet artifacts for a specified architecture and version, defaulting to ppc64le.
-# Trigger manually or on push to main.
+
 
 name: Build Dotnet Artifacts
 
@@ -15,8 +14,37 @@ on:
         required: false
         default: 'ppc64le'
 
+permissions:
+  packages: read
+  contents: write
+
 jobs:
-  build-dotnet:
+  build-toolchain-image:
+    runs-on: ubuntu-latest
+    env:
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    outputs:
+      image-tag: ${{ steps.set-tag.outputs.image_tag }}
+    steps:
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Set image tag
+        id: set-tag
+        run: echo "image_tag=dotnet-toolchain:${ARCH}" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build local toolchain Docker image (with GitHub Actions cache backend)
+        run: |
+          docker buildx build \
+            --build-arg ARCH=${ARCH} \
+            --tag dotnet-toolchain:${ARCH} \
+            --cache-from=type=gha \
+            --cache-to=type=gha,mode=max \
+            --load \
+            -f docker/image/Dockerfile docker/image
+
+  sdk:
+    needs: build-toolchain-image
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
@@ -34,24 +62,6 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
-      - name: Build local toolchain Docker image
-        run: |
-          ARCH=${{ env.ARCH }} ./docker/build -t dotnet-toolchain:${{ env.ARCH }}
-      - name: List local Docker images (debug)
-        run: docker images
-      - name: Prepare (runtime)
-        run: ./dotnet-prepare runtime
-      - name: Build runtime
-        run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build runtime
-      - name: Upload Runtime Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dotnet-runtime-artifacts-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
-          path: |
-            local-downloads/
-            local-packages/
-            output/
       - name: Prepare (sdk)
         run: ./dotnet-prepare sdk
       - name: Build sdk
@@ -60,8 +70,197 @@ jobs:
       - name: Upload SDK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dotnet-sdk-artifacts-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          name: sdk-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
           path: |
             local-downloads/
             local-packages/
             output/
+
+  runtime:
+    needs: [build-toolchain-image, sdk]
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Prepare (runtime)
+        run: ./dotnet-prepare runtime
+      - name: Build runtime
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build runtime
+      - name: Upload Runtime Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+
+  msbuild:
+    needs: runtime
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download runtime artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Prepare (msbuild)
+        run: ./dotnet-prepare msbuild
+      - name: Build msbuild
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build msbuild
+      - name: Upload MSBuild Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+
+  roslyn:
+    needs: msbuild
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download msbuild artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Prepare (roslyn)
+        run: ./dotnet-prepare roslyn
+      - name: Build roslyn
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build roslyn
+      - name: Upload Roslyn Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+
+  aspnetcore:
+    needs: roslyn
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download roslyn artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Prepare (aspnetcore)
+        run: ./dotnet-prepare aspnetcore
+      - name: Build aspnetcore
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build aspnetcore
+      - name: Upload AspNetCore Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aspnetcore-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+
+  release:
+    needs: aspnetcore
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download sdk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download runtime artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download msbuild artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: msbuild-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download roslyn artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: roslyn-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Download aspnetcore artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: aspnetcore-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Create a release
+        run: gh release create --notes "" "${{ github.ref_name }}" output/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
