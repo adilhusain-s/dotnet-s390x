@@ -35,23 +35,19 @@ jobs:
         run: echo "image_tag=dotnet-toolchain:${ARCH}" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build local toolchain Docker image (with GitHub Actions cache backend)
-        run: |
-          deb_arch="$ARCH"
-          gnu_arch="$ARCH"
-          if [ "$ARCH" = "ppc64le" ]; then
-            deb_arch="ppc64el"
-            gnu_arch="powerpc64le"
-          fi
-          docker buildx build \
-            --build-arg ARCH=${ARCH} \
-            --build-arg deb_arch=${deb_arch} \
-            --build-arg gnu_arch=${gnu_arch} \
-            --tag dotnet-toolchain:${ARCH} \
-            --cache-from=type=gha \
-            --cache-to=type=gha,mode=max \
-            --output type=docker,dest=dotnet-toolchain-${ARCH}.tar \
-            -f docker/image/Dockerfile docker/image
+      - name: Build and cache toolchain Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/image
+          file: ./docker/image/Dockerfile
+          tags: dotnet-toolchain:${{ env.ARCH }}
+          outputs: type=docker,dest=dotnet-toolchain-${{ env.ARCH }}.tar
+          build-args: |
+            ARCH=${{ env.ARCH }}
+            deb_arch=ppc64el
+            gnu_arch=powerpc64le
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Upload toolchain Docker image artifact
         uses: actions/upload-artifact@v4
         with:
