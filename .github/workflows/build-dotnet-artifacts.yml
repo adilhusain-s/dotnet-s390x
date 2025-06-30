@@ -81,10 +81,11 @@ jobs:
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (sdk)
-        run: ./dotnet-prepare sdk
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare sdk
       - name: Build sdk
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build sdk
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build sdk
       - name: Upload SDK Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -121,10 +122,11 @@ jobs:
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (runtime)
-        run: ./dotnet-prepare runtime
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare runtime
       - name: Build runtime
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build runtime
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build runtime
       - name: Upload Runtime Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -165,10 +167,11 @@ jobs:
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (msbuild)
-        run: ./dotnet-prepare msbuild
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare msbuild
       - name: Build msbuild
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build msbuild
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build msbuild
       - name: Upload MSBuild Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -209,10 +212,11 @@ jobs:
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (roslyn)
-        run: ./dotnet-prepare roslyn
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare roslyn
       - name: Build roslyn
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build roslyn
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build roslyn
       - name: Upload Roslyn Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -253,10 +257,11 @@ jobs:
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
       - name: Prepare (aspnetcore)
-        run: ./dotnet-prepare aspnetcore
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-prepare aspnetcore
       - name: Build aspnetcore
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build aspnetcore
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} docker/run ./dotnet-build aspnetcore
       - name: Upload AspNetCore Artifacts
         uses: actions/upload-artifact@v4
         with:
