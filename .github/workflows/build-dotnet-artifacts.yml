@@ -1,0 +1,68 @@
+# This workflow builds dotnet artifacts for a specified architecture and version, defaulting to ppc64le.
+# Trigger manually or on push to main.
+
+name: Build Dotnet Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      dotnet_version:
+        description: 'Dotnet version to build'
+        required: true
+        default: '10.0.100-preview.4.25258.110'
+      arch:
+        description: 'Architecture to build for (e.g., ppc64le, s390x, x64)'
+        required: false
+        default: 'ppc64le'
+
+jobs:
+  build-dotnet:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Show free disk space
+        run: df -h
+      - name: Free some disk space
+        run: rm -rf /opt/hostedtoolcache
+      - name: Show free disk space (after cleanup)
+        run: df -h
+      - name: Configure git
+        run: |
+          git config --global user.email iii@linux.ibm.com
+          git config --global user.name "dotnet-s390x bot"
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Build local toolchain Docker image
+        run: |
+          docker build -t dotnet-toolchain:${{ env.ARCH }} ./docker/image \
+            --build-arg ARCH=${{ env.ARCH }}
+      - name: List local Docker images (debug)
+        run: docker images
+      - name: Prepare (runtime)
+        run: ./dotnet-prepare runtime
+      - name: Build runtime
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build runtime
+      - name: Upload Runtime Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-runtime-artifacts-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
+      - name: Prepare (sdk)
+        run: ./dotnet-prepare sdk
+      - name: Build sdk
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-build sdk
+      - name: Upload SDK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-sdk-artifacts-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: |
+            local-downloads/
+            local-packages/
+            output/
