@@ -74,6 +74,9 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -115,6 +118,9 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -160,6 +166,9 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -205,6 +214,9 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -250,6 +262,9 @@ jobs:
           git config --global user.name "dotnet-s390x bot"
       - name: Checkout dotnet-s390x
         uses: actions/checkout@v4
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
       - name: Download toolchain Docker image artifact
         uses: actions/download-artifact@v4
         with:
