@@ -22,6 +22,34 @@ permissions:
 
 jobs:
 
+  prepare-source:
+    needs: build-toolchain-image
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
+      ARCH: ${{ github.event.inputs.arch || 'ppc64le' }}
+    steps:
+      - name: Checkout dotnet-s390x
+        uses: actions/checkout@v4
+      - name: Download toolchain Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-toolchain-image-${{ env.ARCH }}
+      - name: Load toolchain Docker image
+        run: |
+          docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
+      - name: Prepare dotnet sources (dotnet-bump)
+        run: |
+          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+      - name: Archive prepared sources
+        run: |
+          tar -czf prepared-source.tar.gz dotnet
+      - name: Upload prepared source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+          path: prepared-source.tar.gz
+
   build-toolchain-image:
     runs-on: ubuntu-latest
     env:
@@ -56,7 +84,7 @@ jobs:
           path: dotnet-toolchain-${{ env.ARCH }}.tar
 
   runtime:
-    needs: build-toolchain-image
+    needs: [build-toolchain-image, prepare-source]
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -81,9 +109,13 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare dotnet sources (dotnet-bump)
+      - name: Download prepared source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Extract prepared source
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+          tar -xzf prepared-source.tar.gz
       - name: Prepare (runtime)
         run: |
           ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-prepare runtime
@@ -100,7 +132,7 @@ jobs:
             output/
 
   msbuild:
-    needs: runtime
+    needs: [runtime, prepare-source]
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -125,9 +157,13 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare dotnet sources (dotnet-bump)
+      - name: Download prepared source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Extract prepared source
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+          tar -xzf prepared-source.tar.gz
       - name: Download runtime artifacts
         uses: actions/download-artifact@v4
         with:
@@ -148,7 +184,7 @@ jobs:
             output/
 
   roslyn:
-    needs: msbuild
+    needs: [msbuild, prepare-source]
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -173,9 +209,13 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare dotnet sources (dotnet-bump)
+      - name: Download prepared source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Extract prepared source
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+          tar -xzf prepared-source.tar.gz
       - name: Download msbuild artifacts
         uses: actions/download-artifact@v4
         with:
@@ -196,7 +236,7 @@ jobs:
             output/
 
   aspnetcore:
-    needs: roslyn
+    needs: [roslyn, prepare-source]
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -221,9 +261,13 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare dotnet sources (dotnet-bump)
+      - name: Download prepared source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Extract prepared source
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+          tar -xzf prepared-source.tar.gz
       - name: Download roslyn artifacts
         uses: actions/download-artifact@v4
         with:
@@ -244,7 +288,7 @@ jobs:
             output/
 
   sdk:
-    needs: aspnetcore
+    needs: [aspnetcore, prepare-source]
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || github.ref_name || '10.0.100-preview.4.25258.110' }}
@@ -269,9 +313,13 @@ jobs:
       - name: Load toolchain Docker image
         run: |
           docker load -i dotnet-toolchain-${{ env.ARCH }}.tar
-      - name: Prepare dotnet sources (dotnet-bump)
+      - name: Download prepared source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-source-${{ env.ARCH }}-${{ env.DOTNET_VERSION }}
+      - name: Extract prepared source
         run: |
-          ARCH=${{ env.ARCH }} DOTNET_VERSION=${{ env.DOTNET_VERSION }} ./docker/run-image dotnet-toolchain:${{ env.ARCH }} ./dotnet-bump "${{ env.DOTNET_VERSION }}"
+          tar -xzf prepared-source.tar.gz
       - name: Download aspnetcore artifacts
         uses: actions/download-artifact@v4
         with:
